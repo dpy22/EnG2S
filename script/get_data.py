@@ -51,7 +51,7 @@ def get_train_data(excel_path_G, excel_path_P, excel_path_e1, excel_path_e2, dev
     steam1 = [59, 273, 118, 99, 120, 29, 110, 42, 282, 53, 23, 20, 28, 23, 151, 314, 114, 90, 19, 10, 44, 14, 102]  # 管道长度（米）
     steam2 = [0.6, 0.35, 0.25, 0.3, 0.6, 0.35, 0.6, 0.6, 0.6, 0.25, 0.45, 0.35, 0.45, 0.35, 0.6, 0.45, 0.4, 0.45, 0.35, 0.45, 0.3, 0.45, 0.35]  # 管道直径（米）
     
-    # 电力管道的物理参数
+    # 压缩空气管道的物理参数
     e1 = [1340, 2919, 2834, 2300, 1350, 1290]  # 管道长度（米）
     e2 = [0.8, 0.8, 0.6, 0.4, 0.4, 0.4]  # 管道直径（米）
     
@@ -71,6 +71,7 @@ def get_train_data(excel_path_G, excel_path_P, excel_path_e1, excel_path_e2, dev
     G_df = pd.read_excel(excel_path_G)  # 蒸汽流量
     G_df = G_df.abs()  # 取绝对值（确保非负）
     P_df = pd.read_excel(excel_path_P)  # 蒸汽压力
+    P_df = P_df.abs()  # 取绝对值（确保非负）
     e1_df = pd.read_excel(excel_path_e1)  # 压缩空气流量
     e1_df = e1_df.abs()  # 取绝对值
     e2_df = pd.read_excel(excel_path_e2)  # 压缩空气压力
@@ -174,7 +175,7 @@ def data_transform(data, n_his, n_pred, device, args):
         head = i  # 窗口起始位置
         tail = i + n_his  # 窗口结束位置
         # 输入：从head到tail的历史数据
-        x[i, :, :, :] = data[head: tail].reshape(1, n_his, n_vertex)
+        x[i, :, :, :] = data[head: tail].reshape(1, n_his, n_vertex) # [1, n_his, n_vertex]
         # 输出：tail + n_pred - 1时刻的数据（预测目标）
         y[i] = data[tail + n_pred - 1]
     
@@ -208,13 +209,21 @@ def data_split(S_data_x, S_data_y, E_data_x, E_data_y, edge_index, S1, S2, E1, E
     data_list = []
     for i in range(S_data_x.shape[0]):
         # 提取第i个样本的数据
-        xs = S_data_x[i]  # 蒸汽输入
-        ys = S_data_y[i]  # 蒸汽标签
-        xe = E_data_x[i]  # 压缩空气输入
-        ye = E_data_y[i]  # 压缩空气标签
+        xs = S_data_x[i]  # 蒸汽输入，形状为[2, 12, 24]
+        ys = S_data_y[i]  # 蒸汽标签，形状为[2, 24]
+        xe = E_data_x[i]  # 压缩空气输入，形状为[2, 12, 7]
+        ye = E_data_y[i]  # 压缩空气标签，形状为[2, 7]
 
         # 创建PyTorch Geometric的Data对象
+        # edge_index维度：[2, 30]
+        # edge_attr维度：[23]
+        # S1维度：[23]
+        # S2维度：[23]
+        # E1维度：[6]
+        # E2维度：[6]
+        # t维度：[12, 31]
         data = Data(x=xs, edge_index=edge_index, edge_attr=S1, y=ys)
+
         # 添加额外的属性
         data.xe = xe  # 压缩空气节点特征
         data.ye = ye  # 压缩空气标签
@@ -222,8 +231,11 @@ def data_split(S_data_x, S_data_y, E_data_x, E_data_y, edge_index, S1, S2, E1, E
         data.E1 = E1  # 压缩空气管道长度
         data.E2 = E2  # 压缩空气管道直径
         data.t = t  # 时间信息
-        
+
+        # 将Data对象添加到列表中
         data_list.append(data)
+
+    # Data(x=[2, 12, 24], edge_index=[2, 30], edge_attr=[23], y=[2, 24], xe=[2, 12, 7], ye=[2, 7], S2=[23], E1=[6], E2=[6], t=[12, 31])
     return data_list
 
 

@@ -105,7 +105,7 @@ def evaluate_sub(indices, y, y_pred, scaler):
 
 def evaluate_metric(model, data_iter, S_score, E_score, args):
     """
-    计算详细的评估指标（MAE, RMSE, WMAPE）
+    计算详细的评估指标（MAE, RMSE, MAPE, WMAPE）
     
     分别计算蒸汽和空气的流量（G）和压力（P）的指标。
     
@@ -117,11 +117,11 @@ def evaluate_metric(model, data_iter, S_score, E_score, args):
         args: 配置参数对象
     
     返回:
-        12个指标值：
-        - steam_MAE_G, steam_RMSE_G, steam_WMAPE_G: 蒸汽流量指标
-        - steam_MAE_P, steam_RMSE_P, steam_WMAPE_P: 蒸汽压力指标
-        - air_MAE_G, air_RMSE_G, air_WMAPE_G: 空气流量指标
-        - air_MAE_P, air_RMSE_P, air_WMAPE_P: 空气压力指标
+        16个指标值：
+        - steam_MAE_G, steam_RMSE_G, steam_MAPE_G, steam_WMAPE_G: 蒸汽流量指标
+        - steam_MAE_P, steam_RMSE_P, steam_MAPE_P, steam_WMAPE_P: 蒸汽压力指标
+        - air_MAE_G, air_RMSE_G, air_MAPE_G, air_WMAPE_G: 空气流量指标
+        - air_MAE_P, air_RMSE_P, air_MAPE_P, air_WMAPE_P: 空气压力指标
     """
     model.eval()
     with torch.no_grad():
@@ -179,17 +179,23 @@ def evaluate_metric(model, data_iter, S_score, E_score, args):
         steam_MAE_P = np.array(steam_mae_P).mean()
         steam_RMSE_G = np.sqrt(np.array(steam_mse_G).mean())
         steam_RMSE_P = np.sqrt(np.array(steam_mse_P).mean())
+        # MAPE = (100% / n) * Σ|(y_i - ŷ_i) / y_i|
+        steam_MAPE_G = 100.0 * np.array(steam_mape_G).mean()
+        steam_MAPE_P = 100.0 * np.array(steam_mape_P).mean()
         steam_WMAPE_G = np.sum(np.array(steam_mae_G)) / np.sum(np.array(steam_sum_y_G))
         steam_WMAPE_P = np.sum(np.array(steam_mae_P)) / np.sum(np.array(steam_sum_y_P))
         air_MAE_G = np.array(air_mae_G).mean()
         air_MAE_P = np.array(air_mae_P).mean()
         air_RMSE_G = np.sqrt(np.array(air_mse_G).mean())
         air_RMSE_P = np.sqrt(np.array(air_mse_P).mean())
+        # MAPE = (100% / n) * Σ|(y_i - ŷ_i) / y_i|
+        air_MAPE_G = 100.0 * np.array(air_mape_G).mean()
+        air_MAPE_P = 100.0 * np.array(air_mape_P).mean()
         air_WMAPE_G = np.sum(np.array(air_mae_G)) / np.sum(np.array(air_sum_y_G))
         air_WMAPE_P = np.sum(np.array(air_mae_P)) / np.sum(np.array(air_sum_y_P))
 
         #return MAE, MAPE, RMSE
-        return steam_MAE_G, steam_RMSE_G, steam_WMAPE_G, steam_MAE_P, steam_RMSE_P, steam_WMAPE_P, air_MAE_G, air_RMSE_G, air_WMAPE_G, air_MAE_P, air_RMSE_P, air_WMAPE_P
+        return steam_MAE_G, steam_RMSE_G, steam_MAPE_G, steam_WMAPE_G, steam_MAE_P, steam_RMSE_P, steam_MAPE_P, steam_WMAPE_P, air_MAE_G, air_RMSE_G, air_MAPE_G, air_WMAPE_G, air_MAE_P, air_RMSE_P, air_MAPE_P, air_WMAPE_P
 
 def custom_collate(data_list):
     """
@@ -204,6 +210,8 @@ def custom_collate(data_list):
     返回:
         batch_data: 批处理后的数据对象
     """
+
+    # Data(x=[2, 12, 24], edge_index=[2, 30], edge_attr=[23], y=[2, 24], xe=[2, 12, 7], ye=[2, 7], S2=[23], E1=[6], E2=[6], t=[12, 31])
     # 堆叠节点特征和标签
     xs = torch.stack([data.x for data in data_list])  # 蒸汽节点特征
     xe = torch.stack([data.xe for data in data_list])  # 电力节点特征
@@ -221,16 +229,16 @@ def custom_collate(data_list):
 
     # 创建一个空的Batch对象并填充数据
     batch_data = Batch()
-    batch_data.xs = xs
-    batch_data.ys = ys
-    batch_data.xe = xe
-    batch_data.ye = ye
-    batch_data.S1 = S1
-    batch_data.S2 = S2
-    batch_data.E1 = E1
-    batch_data.E2 = E2
-    batch_data.t = t
-    batch_data.edge_index = edge_index
+    batch_data.xs = xs  # [batch_size, 2, 12, 24]
+    batch_data.ys = ys  # [batch_size, 2, 24]
+    batch_data.xe = xe  # [batch_size, 2, 12, 7]
+    batch_data.ye = ye  # [batch_size, 2, 7]
+    batch_data.S1 = S1  # [23]
+    batch_data.S2 = S2  # [23]
+    batch_data.E1 = E1  # [6]
+    batch_data.E2 = E2  # [6]
+    batch_data.t = t  # [batch_size, 12, 31]
+    batch_data.edge_index = edge_index  # [2, 30]
 
     return batch_data
 

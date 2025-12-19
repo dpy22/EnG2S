@@ -22,11 +22,11 @@ class STGCNGraphConv(nn.Module):
     
     输入:
         - x_steam: 蒸汽节点特征 [batch_size, steam_dim, time_steps, n_steam]
-        - x_e: 电力节点特征 [batch_size, electricity_dim, time_steps, n_air]
+        - x_e: 压缩空气节点特征 [batch_size, electricity_dim, time_steps, n_air]
         - t: 时间信息
         - edge_index: 图的边索引
         - steam_weight, steam_d: 蒸汽边的物理属性
-        - e_weight, e_d: 电力边的物理属性
+        - e_weight, e_d: 压缩空气边的物理属性
     
     输出:
         - x: 预测结果 [batch_size, 2, 1, n_vertex] (2表示流量G和压力P)
@@ -44,7 +44,7 @@ class STGCNGraphConv(nn.Module):
 
         # 节点嵌入层：将原始特征（流量G和压力P）转换为嵌入表示
         self.steam_embed = my_layers.NodeEmbedding(args.steam_dim)  # 蒸汽节点嵌入
-        self.e_embed = my_layers.NodeEmbedding(args.electricity_dim)  # 电力节点嵌入
+        self.e_embed = my_layers.NodeEmbedding(args.electricity_dim)  # 压缩空气节点嵌入
         
         # 边嵌入层：将边的物理属性编码为边权重
         self.steam_edge_embed = my_layers.edge_embed(args.steam_edge_dim, 0.01)
@@ -62,11 +62,12 @@ class STGCNGraphConv(nn.Module):
         # 每个时空卷积块会减少 (Kt-1)*2 个时间步
         Ko = args.n_his - (len(blocks) - 3) * 2 * (args.Kt - 1)
         self.Ko = Ko
-        
+ 
         if self.Ko > 1:
             # 如果还有时间维度，使用OutputBlock
             self.output = my_layers.OutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], args.n_vertex, args.act_func,
                                              args.enable_bias, args.droprate)
+            print("还有时间维度，使用OutputBlock")
         elif self.Ko == 0:
             # 如果时间维度被完全压缩，使用全连接层
             self.fc1 = nn.Linear(in_features=blocks[-3][-1], out_features=blocks[-2][0], bias=args.enable_bias)
@@ -75,23 +76,25 @@ class STGCNGraphConv(nn.Module):
             self.leaky_relu = nn.LeakyReLU()
             self.silu = nn.SiLU()
             self.do = nn.Dropout(p=args.droprate)
+            print("时间维度被完全压缩，使用全连接层")
 
     def forward(self, x_steam, x_e, t, edge_index, steam_weight, steam_d, e_weight, e_d, unknown_flag):
         """
         前向传播
         
         参数:
-            x_steam: 蒸汽节点特征 [batch_size, steam_dim, time_steps, n_steam]
-            x_e: 电力节点特征 [batch_size, electricity_dim, time_steps, n_air]
-            t: 时间信息（未使用，保留用于未来扩展）
-            edge_index: 图的边索引 [2, num_edges]
-            steam_weight: 蒸汽边权重（如管道长度）
-            steam_d: 蒸汽边直径
-            e_weight: 电力边权重（如管道长度）
-            e_d: 电力边直径
+            x_steam: 蒸汽节点特征 [batch_size, steam_dim, time_steps, n_steam]，[batch_size, 2, 12, 24]
+            x_e: 压缩空气节点特征 [batch_size, electricity_dim, time_steps, n_air]，[batch_size, 2, 12, 7]
+            t: 时间信息（未使用，保留用于未来扩展），[batch_size, 12, 31]
+            edge_index: 图的边索引 [2, num_edges]，[2, 30]
+            steam_weight: 蒸汽边权重（如管道长度），[23]
+            steam_d: 蒸汽边直径，[23]
+            e_weight: 压缩空气边权重（如管道长度），[6]
+            e_d: 压缩空气边直径，[6]
+            unknown_flag: 未知标志
         
         返回:
-            x: 预测结果 [batch_size, 2, 1, n_vertex] (2表示流量G和压力P)
+            x: 预测结果 [batch_size, 2, 1, n_vertex] (2表示流量G和压力P)，[batch_size, 2, 1, 31]
         """
         # 嵌入边特征
         # 蒸汽边：使用长度/直径比和直径的平方作为特征
@@ -99,9 +102,9 @@ class STGCNGraphConv(nn.Module):
         # 电力边：使用相同的嵌入方式
         e_feature = self.steam_edge_embed(e_weight, e_d, 1E3)
         # 虚拟边（用于连接不同类型的节点）
-        virtual_feature = self.virtual_edge
+        virtual_feature = self.virtual_edge  # [1, 1]
         # 拼接所有边权重
-        edge_weight = torch.cat((steam_feature, e_feature, virtual_feature), dim=0)
+        edge_weight = torch.cat((steam_feature, e_feature, virtual_feature), dim=0)  # [30, 1]
 
         # 嵌入节点特征
         x_steam = self.steam_embed(x_steam)  # [batch_size, embed_dim, time_steps, n_steam]
