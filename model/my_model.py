@@ -76,7 +76,7 @@ class STGCNGraphConv(nn.Module):
             self.silu = nn.SiLU()
             self.do = nn.Dropout(p=args.droprate)
 
-    def forward(self, x_steam, x_e, t, edge_index, steam_weight, steam_d, e_weight, e_d):
+    def forward(self, x_steam, x_e, t, edge_index, steam_weight, steam_d, e_weight, e_d, unknown_flag):
         """
         前向传播
         

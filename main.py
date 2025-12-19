@@ -49,7 +49,7 @@ def set_env(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True)  # 使用确定性算法
 
 
 def get_parameters():
@@ -219,8 +219,8 @@ def data_preparate(args, GATG1, GATP1, GATG2, GATP2, device):
         args: 配置参数
         GATG1: 蒸汽流量数据Excel文件路径
         GATP1: 蒸汽压力数据Excel文件路径
-        GATG2: 电力流量数据Excel文件路径
-        GATP2: 电力压力数据Excel文件路径
+        GATG2: 压缩空气流量数据Excel文件路径
+        GATP2: 压缩空气压力数据Excel文件路径
         device: 计算设备
     
     说明:
@@ -240,7 +240,7 @@ def data_preparate(args, GATG1, GATP1, GATG2, GATP2, device):
     # 处理蒸汽（Steam）数据
     S_x_train, S_y_train, S_x_val, S_y_val, S_x_test, S_y_test, S_score = get_iter(
         G_df, P_df, len_train, len_val)
-    # 处理电力（Electricity）数据
+    # 处理压缩空气（Compressed Air）数据
     E_x_train, E_y_train, E_x_val, E_y_val, E_x_test, E_y_test, E_score = get_iter(
         E1_df, E2_df, len_train, len_val)
 
@@ -602,8 +602,8 @@ if __name__ == "__main__":
     '''
     GATG = 'data/steam_G.xlsx'  # 蒸汽流量数据
     GATP = "data/steam_P.xlsx"  # 蒸汽压力数据
-    GATE1 = 'data/preair_G.xlsx'  # 电力流量数据
-    GATE2 = "data/preair_P.xlsx"  # 电力压力数据
+    GATE1 = 'data/preair_G.xlsx'  # 压缩空气流量数据
+    GATE2 = "data/preair_P.xlsx"  # 压缩空气压力数据
     data_preparate(args, GATG, GATP, GATE1, GATE2, device)
     '''
 

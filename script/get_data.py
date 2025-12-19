@@ -23,21 +23,21 @@ def get_train_data(excel_path_G, excel_path_P, excel_path_e1, excel_path_e2, dev
     参数:
         excel_path_G: 蒸汽流量数据Excel文件路径
         excel_path_P: 蒸汽压力数据Excel文件路径
-        excel_path_e1: 电力流量数据Excel文件路径
-        excel_path_e2: 电力压力数据Excel文件路径
+        excel_path_e1: 压缩空气流量数据Excel文件路径
+        excel_path_e2: 压缩空气压力数据Excel文件路径
         device: 计算设备（CPU或CUDA）
         args: 配置参数对象
     
     返回:
         G_df: 蒸汽流量数据DataFrame
         P_df: 蒸汽压力数据DataFrame
-        e1_df: 电力流量数据DataFrame
-        e2_df: 电力压力数据DataFrame
+        e1_df: 压缩空气流量数据DataFrame
+        e2_df: 压缩空气压力数据DataFrame
         edge_index: 图的边索引
         S1: 蒸汽管道长度列表
         S2: 蒸汽管道直径列表
-        E1: 电力管道长度列表
-        E2: 电力管道直径列表
+        E1: 压缩空气管道长度列表
+        E2: 压缩空气管道直径列表
         t: 时间信息张量
     """
 
@@ -71,9 +71,9 @@ def get_train_data(excel_path_G, excel_path_P, excel_path_e1, excel_path_e2, dev
     G_df = pd.read_excel(excel_path_G)  # 蒸汽流量
     G_df = G_df.abs()  # 取绝对值（确保非负）
     P_df = pd.read_excel(excel_path_P)  # 蒸汽压力
-    e1_df = pd.read_excel(excel_path_e1)  # 电力流量
+    e1_df = pd.read_excel(excel_path_e1)  # 压缩空气流量
     e1_df = e1_df.abs()  # 取绝对值
-    e2_df = pd.read_excel(excel_path_e2)  # 电力压力
+    e2_df = pd.read_excel(excel_path_e2)  # 压缩空气压力
 
     return G_df, P_df, e1_df, e2_df, edge_index, steam1, steam2, e1, e2, t
 
@@ -91,8 +91,8 @@ def get_load_data(args):
         edge_index: 图的边索引
         steam1: 蒸汽管道长度
         steam2: 蒸汽管道直径
-        e1: 电力管道长度
-        e2: 电力管道直径
+        e1: 压缩空气管道长度
+        e2: 压缩空气管道直径
         t: 时间信息张量
     """
     # 定义图的边连接关系
@@ -105,7 +105,7 @@ def get_load_data(args):
     steam1 = [59, 273, 118, 99, 120, 29, 110, 42, 282, 53, 23, 20, 28, 23, 151, 314, 114, 90, 19, 10, 44, 14, 102]
     steam2 = [0.6, 0.35, 0.25, 0.3, 0.6, 0.35, 0.6, 0.6, 0.6, 0.25, 0.45, 0.35, 0.45, 0.35, 0.6, 0.45, 0.4, 0.45, 0.35, 0.45, 0.3, 0.45, 0.35]
     
-    # 电力管道物理参数
+    # 压缩空气管道物理参数
     e1 = [1340, 2919, 2834, 2300, 1350, 1290]
     e2 = [0.8, 0.8, 0.6, 0.4, 0.4, 0.4]
 
@@ -193,13 +193,13 @@ def data_split(S_data_x, S_data_y, E_data_x, E_data_y, edge_index, S1, S2, E1, E
     参数:
         S_data_x: 蒸汽输入数据 [num_samples, 1, n_his, n_steam]
         S_data_y: 蒸汽标签数据 [num_samples, 1, n_steam]
-        E_data_x: 电力输入数据 [num_samples, 1, n_his, n_air]
-        E_data_y: 电力标签数据 [num_samples, 1, n_air]
+        E_data_x: 压缩空气输入数据 [num_samples, 1, n_his, n_air]
+        E_data_y: 压缩空气标签数据 [num_samples, 1, n_air]
         edge_index: 图的边索引
         S1: 蒸汽管道长度
         S2: 蒸汽管道直径
-        E1: 电力管道长度
-        E2: 电力管道直径
+        E1: 压缩空气管道长度
+        E2: 压缩空气管道直径
         t: 时间信息
     
     返回:
@@ -210,17 +210,17 @@ def data_split(S_data_x, S_data_y, E_data_x, E_data_y, edge_index, S1, S2, E1, E
         # 提取第i个样本的数据
         xs = S_data_x[i]  # 蒸汽输入
         ys = S_data_y[i]  # 蒸汽标签
-        xe = E_data_x[i]  # 电力输入
-        ye = E_data_y[i]  # 电力标签
+        xe = E_data_x[i]  # 压缩空气输入
+        ye = E_data_y[i]  # 压缩空气标签
 
         # 创建PyTorch Geometric的Data对象
         data = Data(x=xs, edge_index=edge_index, edge_attr=S1, y=ys)
         # 添加额外的属性
-        data.xe = xe  # 电力节点特征
-        data.ye = ye  # 电力标签
+        data.xe = xe  # 压缩空气节点特征
+        data.ye = ye  # 压缩空气标签
         data.S2 = S2  # 蒸汽管道直径
-        data.E1 = E1  # 电力管道长度
-        data.E2 = E2  # 电力管道直径
+        data.E1 = E1  # 压缩空气管道长度
+        data.E2 = E2  # 压缩空气管道直径
         data.t = t  # 时间信息
         
         data_list.append(data)
