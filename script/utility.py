@@ -1,3 +1,9 @@
+"""
+工具函数模块
+
+本模块提供了模型评估、指标计算、数据批处理和PDE损失计算等功能。
+"""
+
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.linalg import norm
@@ -8,6 +14,18 @@ import pandas as pd
 import torch.nn.functional as F
 
 def evaluate_model(model, loss, data_iter, args):
+    """
+    评估模型在数据集上的MSE损失
+    
+    参数:
+        model: 训练好的模型
+        loss: 损失函数
+        data_iter: 数据迭代器
+        args: 配置参数对象
+    
+    返回:
+        mse: 平均MSE损失
+    """
     model.eval()
     l_sum, n = 0.0, 0
     with torch.no_grad():
@@ -41,6 +59,21 @@ def evaluate_model(model, loss, data_iter, args):
         return mse
 
 def evaluate_sub(indices, y, y_pred, scaler):
+    """
+    评估子集的预测误差（用于计算MAE等指标）
+    
+    参数:
+        indices: 要评估的节点索引
+        y: 真实标签 [batch_size, 2, n_nodes]
+        y_pred: 预测值 [batch_size, 2, n_nodes]
+        scaler: 标准化器列表，用于反标准化
+    
+    返回:
+        d1: 第一个特征（流量G）的绝对误差
+        d2: 第二个特征（压力P）的绝对误差
+        y1: 反标准化后的真实流量G
+        y2: 反标准化后的真实压力P
+    """
     y1, y2 = torch.split(y, split_size_or_sections=1, dim=1)
     # 将张量从第二个维度上挤压，得到形状为 [32, 24] 的张量
     y1 = y1.squeeze(dim=1)
@@ -71,6 +104,25 @@ def evaluate_sub(indices, y, y_pred, scaler):
 
 
 def evaluate_metric(model, data_iter, S_score, E_score, args):
+    """
+    计算详细的评估指标（MAE, RMSE, WMAPE）
+    
+    分别计算蒸汽和空气的流量（G）和压力（P）的指标。
+    
+    参数:
+        model: 训练好的模型
+        data_iter: 数据迭代器
+        S_score: 蒸汽数据标准化器
+        E_score: 电力数据标准化器
+        args: 配置参数对象
+    
+    返回:
+        12个指标值：
+        - steam_MAE_G, steam_RMSE_G, steam_WMAPE_G: 蒸汽流量指标
+        - steam_MAE_P, steam_RMSE_P, steam_WMAPE_P: 蒸汽压力指标
+        - air_MAE_G, air_RMSE_G, air_WMAPE_G: 空气流量指标
+        - air_MAE_P, air_RMSE_P, air_WMAPE_P: 空气压力指标
+    """
     model.eval()
     with torch.no_grad():
         steam_mae_G, steam_sum_y_G, steam_mape_G, steam_mse_G, steam_mae_P, steam_sum_y_P, steam_mape_P, steam_mse_P, = [], [], [], [], [], [], [], []
@@ -140,21 +192,34 @@ def evaluate_metric(model, data_iter, S_score, E_score, args):
         return steam_MAE_G, steam_RMSE_G, steam_WMAPE_G, steam_MAE_P, steam_RMSE_P, steam_WMAPE_P, air_MAE_G, air_RMSE_G, air_WMAPE_G, air_MAE_P, air_RMSE_P, air_WMAPE_P
 
 def custom_collate(data_list):
-    # 提取x, y, edge_index, edge_attr
-    xs = torch.stack([data.x for data in data_list]) # 堆叠x
-    xe = torch.stack([data.xe for data in data_list])
-    ys = torch.stack([data.y for data in data_list]) # 堆叠y
-    ye = torch.stack([data.ye for data in data_list])
-    t = torch.stack([data.t for data in data_list])
+    """
+    自定义批处理函数
+    
+    将多个Data对象合并为一个批次。由于所有样本共享相同的图结构（edge_index等），
+    只需要从第一个样本中获取图结构信息。
+    
+    参数:
+        data_list: Data对象列表
+    
+    返回:
+        batch_data: 批处理后的数据对象
+    """
+    # 堆叠节点特征和标签
+    xs = torch.stack([data.x for data in data_list])  # 蒸汽节点特征
+    xe = torch.stack([data.xe for data in data_list])  # 电力节点特征
+    ys = torch.stack([data.y for data in data_list])  # 蒸汽标签
+    ye = torch.stack([data.ye for data in data_list])  # 电力标签
+    t = torch.stack([data.t for data in data_list])  # 时间信息
+    
     # 由于每个data的edge_index和edge_attr都是相同的，
     # 只需要从第一个元素中获取它们
     edge_index = data_list[0].edge_index
-    S1 = data_list[0].edge_attr
-    S2 = data_list[0].S2
-    E1 = data_list[0].E1
-    E2 = data_list[0].E2
+    S1 = data_list[0].edge_attr  # 蒸汽管道长度
+    S2 = data_list[0].S2  # 蒸汽管道直径
+    E1 = data_list[0].E1  # 电力管道长度
+    E2 = data_list[0].E2  # 电力管道直径
 
-    # 创建一个空的Data对象并填充数据
+    # 创建一个空的Batch对象并填充数据
     batch_data = Batch()
     batch_data.xs = xs
     batch_data.ys = ys
@@ -170,6 +235,28 @@ def custom_collate(data_list):
     return batch_data
 
 def calculate_pde_loss(dpdt, dpdx, dgdt, dgdx, P, G, d, A, args, Flag):
+    """
+    计算PDE（偏微分方程）损失
+    
+    基于物理方程计算损失，确保模型预测符合物理规律。
+    对于蒸汽和空气系统，使用不同的物理参数。
+    
+    参数:
+        dpdt: 压力对时间的偏导数
+        dpdx: 压力对空间的偏导数
+        dgdt: 流量对时间的偏导数
+        dgdx: 流量对空间的偏导数
+        P: 压力
+        G: 流量
+        d: 管道直径
+        A: 管道横截面积
+        args: 配置参数对象
+        Flag: True表示蒸汽系统，False表示空气系统
+    
+    返回:
+        loss1: 第一个PDE方程的残差
+        loss2: 第二个PDE方程的残差
+    """
     #steam = IAPWS97(P=P, T=T)
     # 计算定压比热 c_p (单位kJ/kgK)
     #cp = steam.cp
@@ -191,6 +278,23 @@ def calculate_pde_loss(dpdt, dpdx, dgdt, dgdx, P, G, d, A, args, Flag):
     return loss1, loss2
 
 def caculate_grad(args, y_pred, edge_weights, t, zscore, Flag):
+    """
+    计算梯度损失（用于PDE约束）
+    
+    通过自动微分计算预测值对时间和空间的梯度，然后计算PDE损失。
+    
+    参数:
+        args: 配置参数对象
+        y_pred: 模型预测值 [batch_size, 2, n_nodes]
+        edge_weights: 边权重（用于计算空间梯度）
+        t: 时间信息（用于计算时间梯度）
+        zscore: 标准化器列表
+        Flag: True表示蒸汽系统，False表示空气系统
+    
+    返回:
+        l_grad1: 第一个PDE方程的损失
+        l_grad2: 第二个PDE方程的损失
+    """
     if args.need_grad:
         if Flag:
             g = y_pred[:, 0, :args.n_steam]

@@ -1,0 +1,119 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+*.pyd
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Pyre type checker
+.pyre/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+
+# Pyright
+.pyright/
+
+# PyCharm
+.idea/
+*.iml
+
+# VSCode
+.vscode/
+
+# Environment variables
+.env
+.env.*
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Mac OS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Data
+*.pkl
+*.h5
+*.hdf5
+*.db
+
+# Output and temporary files
+*.out
+*.tmp
+*.temp
+
+# Model checkpoints
+*.ckpt
+*.pt
+*.pth
+
+# Local package management
+__pypackages__/
+
+# uv pip cache
+.uv/
+
+# Documentation builds
+/build/
+/docs/_build/
+
+# User-specific files
+*.swp
+*~
