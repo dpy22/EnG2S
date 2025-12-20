@@ -1,0 +1,1 @@
+Trial 21 finished with value: 0.08725811396002711 and parameters: {'max_depth': 9, 'learning_rate': 0.044913467579125975, 'n_estimators': 800, 'subsample': 0.9958479357109641, 'colsample_bytree': 0.8100683062187806, 'min_child_weight': 7, 'gamma': 0.2735927466196289, 'reg_alpha': 0.4157721299338367, 'reg_lambda': 0.6943785653552943}.
