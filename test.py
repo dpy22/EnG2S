@@ -1,33 +1,9 @@
-import sqlite3
+edge_index = [[0, 1, 2, 2, 1, 5, 5, 7, 8, 9, 9, 11, 11, 13, 7, 15, 16, 15, 18, 18, 20, 16, 22, 24, 25, 26, 27, 27, 26, 0],
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 30, 24]]
 
-# 查询目标数据库文件
-db_path = r"D:\\能源系统\\EnG2S\\reports\\xgboost_run_20251220_104302\\optimization_history.db"
+# 把edge_index中的，每个值加1
 
-# 连接数据库
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
+edge_index_plus = [[1, 2, 3, 3, 2, 6, 6, 8, 9, 10, 10, 12, 12, 14, 8, 16, 17, 16, 19, 19, 21, 17, 23, 25, 26, 27, 28, 28, 27, 1],
+                   [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 25]]
 
-# 查看数据库中所有表
-print("数据库中所有表：")
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-tables = cursor.fetchall()
-for t in tables:
-    print(t[0])
-
-print("\n每个表的前5条记录及结构：")
-for t in tables:
-    print(f"\n表名: {t[0]}")
-    # 查询表结构
-    cursor.execute(f"PRAGMA table_info('{t[0]}');")
-    cols = cursor.fetchall()
-    print("字段:")
-    for col in cols:
-        print(f"  {col[1]} ({col[2]})")
-    # 查询前5条数据
-    cursor.execute(f"SELECT * FROM '{t[0]}' LIMIT 5;")
-    rows = cursor.fetchall()
-    print("前5条记录:")
-    for row in rows:
-        print(row)
-
-conn.close()
+print(edge_index_plus)
